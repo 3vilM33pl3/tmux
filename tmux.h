@@ -1101,6 +1101,7 @@ struct window_mode {
 	void		 (*free)(struct window_mode_entry *);
 	void		 (*resize)(struct window_mode_entry *, u_int, u_int);
 	void		 (*update)(struct window_mode_entry *);
+	void		 (*style_changed)(struct window_mode_entry *);
 	void		 (*key)(struct window_mode_entry *, struct client *,
 			     struct session *, struct winlink *, key_code,
 			     struct mouse_event *);
@@ -1305,6 +1306,7 @@ struct window {
 	struct event		 offset_timer;
 
 	struct timeval		 activity_time;
+	struct timeval		 creation_time;
 
 	struct window_pane	*active;
 	struct window_panes 	 last_panes;
@@ -2363,7 +2365,7 @@ time_t		 paste_buffer_created(struct paste_buffer *);
 const char	*paste_buffer_data(struct paste_buffer *, size_t *);
 struct paste_buffer *paste_walk(struct paste_buffer *);
 int		 paste_is_empty(void);
-struct paste_buffer *paste_get_top(const char **);
+struct paste_buffer *paste_get_top(char **);
 struct paste_buffer *paste_get_name(const char *);
 void		 paste_free(struct paste_buffer *);
 void		 paste_add(const char *, char *, size_t);
@@ -3065,7 +3067,7 @@ void	 recalculate_sizes_now(int);
 /* input.c */
 #define INPUT_BUF_DEFAULT_SIZE 1048576
 struct input_ctx *input_init(struct window_pane *, struct bufferevent *,
-	     struct colour_palette *);
+	     struct colour_palette *, struct client *);
 void	 input_free(struct input_ctx *);
 void	 input_reset(struct input_ctx *, int);
 struct evbuffer *input_pending(struct input_ctx *);
