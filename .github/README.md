@@ -1,5 +1,39 @@
 # Welcome to tmux!
 
+![Big label mode demo](../logo/agentic_eng_resized.png)
+
+## Fork note: agent-safe context labels
+
+This repository is a fork of [upstream tmux](https://github.com/tmux/tmux).
+I added a `big-label-mode` feature to reduce mistakes when working with
+multiple AI agents, by making pane/session context explicit in large text.
+
+### How it works
+
+- Command: `big-label-mode`
+- Default binding: `Prefix` + `T`
+- Shows a large label overlay in the target pane
+- Uses the current session name when no custom text is provided
+- Press any key to exit
+
+Examples:
+
+~~~tmux
+big-label-mode
+big-label-mode "AGENT: INFRA"
+big-label-mode -t %3 "PROD"
+~~~
+
+### Install this fork
+
+~~~bash
+git clone git@github.com:3vilM33pl3/tmux.git
+cd tmux
+sh autogen.sh
+./configure && make
+sudo make install
+~~~
+
 tmux is a terminal multiplexer: it enables a number of terminals to be created,
 accessed, and controlled from a single screen. tmux may be detached from a
 screen and continue running in the background, then later reattached.
