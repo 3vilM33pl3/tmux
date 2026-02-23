@@ -1527,7 +1527,7 @@ tty_set_client_cb(struct tty_ctx *ttyctx, struct client *c)
 	ttyctx->bigger = tty_window_offset(&c->tty, &ttyctx->wox, &ttyctx->woy,
 	    &ttyctx->wsx, &ttyctx->wsy);
 
-	ttyctx->yoff = ttyctx->ryoff = wp->yoff;
+	ttyctx->yoff = ttyctx->ryoff = wp->yoff;  /* xxxx find another way to do this */
 	if (status_at_line(c) == 0)
 		ttyctx->yoff += status_line_size(c);
 
@@ -1555,7 +1555,7 @@ tty_draw_images(struct client *c, struct window_pane *wp, struct screen *s)
 		ttyctx.sy = wp->sy;
 
 		ttyctx.ptr = im;
-		ttyctx.arg = wp;
+		ttyctx.arg = wp;  /* xxx remove this */
 		ttyctx.set_client_cb = tty_set_client_cb;
 		ttyctx.allow_invisible_panes = 1;
 		tty_write_one(tty_cmd_sixelimage, c, &ttyctx);
@@ -1866,39 +1866,6 @@ tty_cmd_linefeed(struct tty *tty, const struct tty_ctx *ctx)
 	tty_putc(tty, '\n');
 }
 
-/* Return 1 if there is a floating window pane overlapping this pane. */
-static int
-tty_is_obscured(const struct tty_ctx *ctx)
-{
-	struct window_pane	*base_wp = ctx->arg, *wp;
-	struct window		*w;
-	int			 found_self = 0;
-
-	if (base_wp == NULL)
-		return(0);
-	w = base_wp->window;
-
-	/* Check if there is a floating pane. xxxx borders? scrollbars? */
-	TAILQ_FOREACH_REVERSE(wp, &w->z_index, window_panes_zindex, zentry) {
-		if (wp == base_wp) {
-			found_self = 1;
-			continue;
-		}
-		if (found_self && wp->flags & PANE_FLOATING &&
-		    ! (wp->flags & PANE_MINIMISED) &&
-		    ((wp->yoff >= base_wp->yoff &&
-		    wp->yoff <= base_wp->yoff + (int)base_wp->sy) ||
-		    (wp->yoff + (int)wp->sy >= base_wp->yoff &&
-		    wp->yoff + wp->sy <= base_wp->yoff + base_wp->sy)) &&
-		    ((wp->xoff >= base_wp->xoff &&
-		    wp->xoff <= base_wp->xoff + (int)base_wp->sx) ||
-		    (wp->xoff + (int)wp->sx >= base_wp->xoff &&
-		    wp->xoff + wp->sx <= base_wp->xoff + base_wp->sx)))
-			return (1);
-		}
-	return (0);
-}
-
 void
 tty_cmd_scrollup(struct tty *tty, const struct tty_ctx *ctx)
 {
@@ -1911,7 +1878,8 @@ tty_cmd_scrollup(struct tty *tty, const struct tty_ctx *ctx)
 	    !tty_term_has(tty->term, TTYC_CSR) ||
 	    ctx->sx == 1 ||
 	    ctx->sy == 1 ||
-	    c->overlay_check != NULL) {
+	    c->overlay_check != NULL ||
+	    ctx->obscured) {
 		tty_redraw_region(tty, ctx);
 		return;
 	}
@@ -2069,7 +2037,7 @@ tty_cmd_cell(struct tty *tty, const struct tty_ctx *ctx)
 {
 	const struct grid_cell	*gcp = ctx->cell;
 	struct screen		*s = ctx->s;
-	struct visible_ranges	*r;
+	struct visible_ranges	*r = NULL;
 	u_int			 px, py, i, vis = 0;
 
 	px = ctx->xoff + ctx->ocx - ctx->wox;

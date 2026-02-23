@@ -1721,6 +1721,9 @@ struct tty_ctx {
 	u_int			 woy;
 	u_int			 wsx;
 	u_int			 wsy;
+
+	/* tty partly obscured, it will need to be surgically scrolled. */
+	u_int			 obscured;
 };
 
 /* Saved message entry. */

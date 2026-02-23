@@ -1814,6 +1814,39 @@ screen_write_collect_scroll(struct screen_write_ctx *ctx, u_int bg)
 	TAILQ_INSERT_TAIL(&ctx->s->write_list[s->rlower].items, ci, entry);
 }
 
+/* Return 1 if there is a floating window pane overlapping this pane. */
+static int
+screen_write_pane_obscured(struct window_pane *base_wp)
+{
+	struct window_pane	*wp;
+	struct window		*w;
+	int			 found_self = 0;
+
+	if (base_wp == NULL)
+		return(0);
+	w = base_wp->window;
+
+	/* Check if there is a floating pane. xxxx borders? scrollbars? */
+	TAILQ_FOREACH_REVERSE(wp, &w->z_index, window_panes_zindex, zentry) {
+		if (wp == base_wp) {
+			found_self = 1;
+			continue;
+		}
+		if (found_self && wp->flags & PANE_FLOATING &&
+		    ! (wp->flags & PANE_MINIMISED) &&
+		    ((wp->yoff >= base_wp->yoff &&
+		    wp->yoff <= base_wp->yoff + (int)base_wp->sy) ||
+		    (wp->yoff + (int)wp->sy >= base_wp->yoff &&
+		    wp->yoff + wp->sy <= base_wp->yoff + base_wp->sy)) &&
+		    ((wp->xoff >= base_wp->xoff &&
+		    wp->xoff <= base_wp->xoff + (int)base_wp->sx) ||
+		    (wp->xoff + (int)wp->sx >= base_wp->xoff &&
+		    wp->xoff + wp->sx <= base_wp->xoff + base_wp->sx)))
+			return (1);
+		}
+	return (0);
+}
+
 /* Flush collected lines. */
 static void
 screen_write_collect_flush(struct screen_write_ctx *ctx, int scroll_only,
@@ -1853,6 +1886,7 @@ screen_write_collect_flush(struct screen_write_ctx *ctx, int scroll_only,
 			 ttyctx.orlower -= (wp->yoff + wp->sy - wp->window->sy);
 		ttyctx.num = ctx->scrolled;
 		ttyctx.bg = ctx->bg;
+		ttyctx.obscured = screen_write_pane_obscured(wp);
 		tty_write(tty_cmd_scrollup, &ttyctx);
 
 		if (wp != NULL)
