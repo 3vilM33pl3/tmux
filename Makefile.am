@@ -86,6 +86,7 @@ dist_tmux_SOURCES = \
 	client.c \
 	cmd-attach-session.c \
 	cmd-bind-key.c \
+	cmd-big-label-mode.c \
 	cmd-break-pane.c \
 	cmd-capture-pane.c \
 	cmd-choose-tree.c \
@@ -205,6 +206,7 @@ dist_tmux_SOURCES = \
 	utf8-combined.c \
 	utf8.c \
 	window-buffer.c \
+	window-big-label.c \
 	window-client.c \
 	window-clock.c \
 	window-copy.c \

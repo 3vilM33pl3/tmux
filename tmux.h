@@ -3496,6 +3496,9 @@ extern const struct window_mode window_tree_mode;
 extern const struct window_mode window_clock_mode;
 extern const char window_clock_table[14][5][5];
 
+/* window-big-label.c */
+extern const struct window_mode window_big_label_mode;
+
 /* window-client.c */
 extern const struct window_mode window_client_mode;
 
