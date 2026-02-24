@@ -1,6 +1,6 @@
 # Welcome to tmux!
 
-![Big label mode demo](../logo/agentic_eng_resized.png)
+![Big label mode demo](https://raw.githubusercontent.com/3vilM33pl3/tmux/master/logo/agentic_eng_resized.png)
 
 ## Fork note: agent-safe context labels
 
