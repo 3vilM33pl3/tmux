@@ -30,11 +30,13 @@
 #define WINDOW_BIG_LABEL_SPACING 1
 #define WINDOW_BIG_LABEL_STEP (WINDOW_BIG_LABEL_WIDTH + WINDOW_BIG_LABEL_SPACING)
 #define WINDOW_BIG_LABEL_WHITE 15
+#define WINDOW_BIG_LABEL_PIXEL '#'
 
 struct window_big_label_mode_data {
 	struct screen		screen;
 	char		       *label;
 	int			colour;
+	int			limited_terminal;
 	TAILQ_ENTRY(window_big_label_mode_data) entry;
 };
 
@@ -61,7 +63,7 @@ static void	window_big_label_key(struct window_mode_entry *, struct client *,
 		    struct mouse_event *);
 
 static void	window_big_label_draw_screen(struct window_mode_entry *);
-static int	window_big_label_pick_colour(struct window_pane *);
+static int	window_big_label_pick_colour(struct window_pane *, int);
 static const u_char *window_big_label_glyph(u_char);
 
 const struct window_mode window_big_label_mode = {
@@ -132,6 +134,10 @@ static const int window_big_label_pastels[] = {
 	95, 96, 101, 102, 103, 131, 132, 137, 138, 139, 144, 145
 };
 
+static const int window_big_label_console_colours[] = {
+	1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14
+};
+
 static const u_char *
 window_big_label_glyph(u_char ch)
 {
@@ -150,21 +156,30 @@ window_big_label_glyph(u_char ch)
 }
 
 static int
-window_big_label_pick_colour(struct window_pane *wp)
+window_big_label_pick_colour(struct window_pane *wp, int limited_terminal)
 {
 	struct window_big_label_mode_data	*data;
 	struct window_big_label_colour_data	*colour_data;
-	int					 used[nitems(window_big_label_pastels)];
+	const int				*palette;
+	u_int					 count;
+	int					 used[32];
 	int					 last;
-	u_int					 i, start, offset, count;
+	u_int					 i, start, offset;
 
-	count = nitems(window_big_label_pastels);
+	if (limited_terminal) {
+		palette = window_big_label_console_colours;
+		count = nitems(window_big_label_console_colours);
+	} else {
+		palette = window_big_label_pastels;
+		count = nitems(window_big_label_pastels);
+	}
+
 	memset(used, 0, sizeof used);
 	last = -1;
 
 	TAILQ_FOREACH(data, &window_big_label_modes, entry) {
 		for (i = 0; i < count; i++) {
-			if (window_big_label_pastels[i] == data->colour)
+			if (palette[i] == data->colour)
 				used[i] = 1;
 		}
 	}
@@ -179,20 +194,20 @@ window_big_label_pick_colour(struct window_pane *wp)
 	    count;
 	for (offset = 0; offset < count; offset++) {
 		i = (start + offset) % count;
-		if (!used[i] && window_big_label_pastels[i] != last)
-			return (window_big_label_pastels[i]);
+		if (!used[i] && palette[i] != last)
+			return (palette[i]);
 	}
 	for (offset = 0; offset < count; offset++) {
 		i = (start + offset) % count;
 		if (!used[i])
-			return (window_big_label_pastels[i]);
+			return (palette[i]);
 	}
 	for (offset = 0; offset < count; offset++) {
 		i = (start + offset) % count;
-		if (window_big_label_pastels[i] != last)
-			return (window_big_label_pastels[i]);
+		if (palette[i] != last)
+			return (palette[i]);
 	}
-	return (window_big_label_pastels[start]);
+	return (palette[start]);
 }
 
 static struct screen *
@@ -221,9 +236,10 @@ window_big_label_init(struct window_mode_entry *wme, struct cmd_find_state *fs,
 		text = "TMUX";
 
 	data->label = xstrdup(text);
+	data->limited_terminal = (args != NULL && args_has(args, 'l'));
 	for (ptr = data->label; *ptr != '\0'; ptr++)
 		*ptr = toupper((u_char)*ptr);
-	data->colour = window_big_label_pick_colour(wp);
+	data->colour = window_big_label_pick_colour(wp, data->limited_terminal);
 	TAILQ_FOREACH(colour_data, &window_big_label_colours, entry) {
 		if (colour_data->pane_id == wp->id)
 			break;
@@ -320,8 +336,15 @@ window_big_label_draw_screen(struct window_mode_entry *wme)
 
 	memcpy(&pixel, &grid_default_cell, sizeof pixel);
 	pixel.flags |= GRID_FLAG_NOPALETTE;
-	pixel.bg = WINDOW_BIG_LABEL_WHITE;
-	pixel.fg = data->colour;
+	if (data->limited_terminal) {
+		/* linux console fallback: foreground glyph pixels are reliable */
+		pixel.bg = data->colour;
+		pixel.fg = WINDOW_BIG_LABEL_WHITE;
+	} else {
+		/* richer terminals: keep original block-style rendering */
+		pixel.bg = WINDOW_BIG_LABEL_WHITE;
+		pixel.fg = data->colour;
+	}
 
 	for (k = 0; k < len; k++) {
 		ch = data->label[k];
@@ -331,7 +354,12 @@ window_big_label_draw_screen(struct window_mode_entry *wme)
 			for (i = 0; i < WINDOW_BIG_LABEL_WIDTH; i++) {
 				if (rows[j] & (1 << (WINDOW_BIG_LABEL_WIDTH - 1 - i))) {
 					screen_write_cursormove(&ctx, x + i, y + j, 0);
-					screen_write_putc(&ctx, &pixel, ' ');
+					if (data->limited_terminal)
+						screen_write_putc(&ctx, &pixel,
+						    WINDOW_BIG_LABEL_PIXEL);
+					else
+						screen_write_putc(&ctx, &pixel,
+						    ' ');
 				}
 			}
 		}

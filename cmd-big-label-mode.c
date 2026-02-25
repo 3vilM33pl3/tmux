@@ -17,6 +17,7 @@
  */
 
 #include <sys/types.h>
+#include <string.h>
 
 #include "tmux.h"
 
@@ -43,8 +44,18 @@ static enum cmd_retval
 cmd_big_label_mode_exec(struct cmd *self, struct cmdq_item *item)
 {
 	struct args		*args = cmd_get_args(self);
+	struct client		*c = cmdq_get_client(item);
 	struct cmd_find_state	*target = cmdq_get_target(item);
 	struct window_pane	*wp = target->wp;
+
+	/*
+	 * Limited terminals (for example linux console) need a more explicit
+	 * renderer in big-label mode to keep text visible.
+	 */
+	if (c != NULL && (strcmp(c->term_name, "linux") == 0 ||
+	    (c->tty.term != NULL &&
+	    (c->tty.term->flags & TERM_256COLOURS) == 0)))
+		args_set(args, 'l', NULL, 0);
 
 	window_pane_set_mode(wp, NULL, &window_big_label_mode, target, args);
 	return (CMD_RETURN_NORMAL);
